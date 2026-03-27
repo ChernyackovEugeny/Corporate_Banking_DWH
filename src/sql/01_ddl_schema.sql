@@ -6,9 +6,9 @@ DROP SCHEMA IF EXISTS oltp CASCADE;
 DROP SCHEMA IF EXISTS dwh CASCADE;
 DROP SCHEMA IF EXISTS dm_risk CASCADE;
 
-CREATE SCHEMA IF NOT EXISTS oltp;       -- Операционный слой (как у Java-бэкенда)
-CREATE SCHEMA IF NOT EXISTS dwh;        -- Слой хранилища (Integration layer)
-CREATE SCHEMA IF NOT EXISTS dm_risk;    -- Слой витрин (Data Marts)
+CREATE SCHEMA IF NOT EXISTS oltp;       -- Операционный слой
+CREATE SCHEMA IF NOT EXISTS dwh;        -- Слой хранилища
+CREATE SCHEMA IF NOT EXISTS dm_risk;    -- Слой витрин
 
 
 -- =============================================
@@ -65,53 +65,6 @@ CREATE INDEX idx_trans_date ON oltp.transactions(transaction_date);
 CREATE INDEX idx_trans_account ON oltp.transactions(account_id);
 
 
--- =============================================
--- СЛОЙ DWH (Core Layer - Звезда)
--- Хранилище данных
--- =============================================
-
--- Измерение: Дата
-CREATE TABLE IF NOT EXISTS dwh.dim_date (
-    date_id INT PRIMARY KEY,
-    actual_date DATE UNIQUE,
-    day_name VARCHAR(10),
-    month_name VARCHAR(10),
-    year_num INT,
-    quarter_num INT
-);
-
--- Измерение: Клиент
-CREATE TABLE IF NOT EXISTS dwh.dim_client (
-    client_sk SERIAL PRIMARY KEY,    -- Суррогатный ключ
-    client_id_nk INT,                -- Натуральный ключ из OLTP
-    company_name VARCHAR(255),
-    industry VARCHAR(100),
-    region VARCHAR(100),
-    load_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Измерение: Тип транзакции
-CREATE TABLE IF NOT EXISTS dwh.dim_transaction_type (
-    type_id SERIAL PRIMARY KEY,
-    type_name VARCHAR(50) -- INCOME / OUTCOME
-);
-
--- Факт: Транзакции (Центр таблицы Звезды)
-CREATE TABLE IF NOT EXISTS dwh.fact_transactions (
-    fact_id BIGSERIAL PRIMARY KEY,
-    transaction_id_nk BIGINT,        -- ID из источника
-    client_sk INT REFERENCES dwh.dim_client(client_sk),
-    date_id INT REFERENCES dwh.dim_date(date_id),
-    type_id INT REFERENCES dwh.dim_transaction_type(type_id),
-    amount_rub DECIMAL(18, 2),       -- Сконвертированная сумма
-    description TEXT,                -- Текст для NLP
-    etl_processed_dt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- =============================================
--- СЛОЙ DATA MARTS (Витрины)
--- Будем создавать их через VIEW позже
--- =============================================
 
 
 
@@ -124,20 +77,3 @@ CREATE TABLE IF NOT EXISTS dwh.fact_transactions (
 
 
 
-
-
-
-
-
-
--- Факт: Транзакции (Центр таблицы Звезды)
-CREATE TABLE IF NOT EXISTS dwh.fact_transactions (
-    fact_id BIGSERIAL PRIMARY KEY,
-    transaction_id_nk BIGINT,        -- ID из источника
-    client_sk INT REFERENCES dwh.dim_client(client_sk),
-    date_id INT REFERENCES dwh.dim_date(date_id),
-    type_id INT REFERENCES dwh.dim_transaction_type(type_id),
-    amount_rub DECIMAL(18, 2),       -- Сконвертированная сумма
-    description TEXT,                -- Текст для NLP
-    etl_processed_dt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
